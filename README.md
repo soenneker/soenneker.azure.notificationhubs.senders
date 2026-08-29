@@ -4,54 +4,65 @@
 
 # Soenneker.Azure.NotificationHubs.Senders
 
-A .NET sender for Azure Notification Hubs push notifications.
+A DI-ready sender for template and native Azure Notification Hubs notifications, with tag, tag-expression, and direct-device targeting.
 
-## Install
+## Installation
 
 ```bash
 dotnet add package Soenneker.Azure.NotificationHubs.Senders
 ```
 
-## Quick start
+## Configuration and registration
+
+```json
+{
+  "Azure": {
+    "NotificationHubs": {
+      "ConnectionString": "Endpoint=sb://...",
+      "HubName": "notifications"
+    }
+  }
+}
+```
 
 ```csharp
 using Soenneker.Azure.NotificationHubs.Senders.Registrars;
-using Microsoft.Extensions.DependencyInjection;
 
-var services = new ServiceCollection();
-var result = services.AddAzureNotificationHubSenderAsSingleton();
+builder.Services.AddAzureNotificationHubSenderAsSingleton();
 ```
 
-Adds `IAzureNotificationHubSender` as a singleton service.
+The connection string must permit sends. Keep it in a backend secret provider; never place it in a mobile or browser application.
 
-## What you get
+## Send an FCM v1 notification to tags
 
-- `IAzureNotificationHubSender` — A .NET sender for Azure Notification Hubs push notifications.
-- `AzureNotificationHubSenderRegistrar` — A .NET sender for Azure Notification Hubs push notifications.
+```csharp
+using Soenneker.Azure.NotificationHubs.Senders.Abstract;
 
-## API at a glance
+string payload = """
+{
+  "message": {
+    "notification": {
+      "title": "Order ready",
+      "body": "Your order is ready for pickup."
+    }
+  }
+}
+""";
 
-| API | What it does | Result / important behavior |
-| --- | --- | --- |
-| `IAzureNotificationHubSender.Send(notification, tags, cancellationToken)` | Sends azure Notification Hub Sender. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendTemplate(properties, cancellationToken)` | Sends template. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendTemplate(properties, tags, cancellationToken)` | Sends template. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendTemplateToTagExpression(properties, tagExpression, cancellationToken)` | Sends template To Tag Expression. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendDirect(notification, deviceHandle, cancellationToken)` | Sends direct. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendApple(jsonPayload, cancellationToken)` | Sends apple. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendApple(jsonPayload, tags, cancellationToken)` | Sends apple. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendAppleToTagExpression(jsonPayload, tagExpression, cancellationToken)` | Sends apple To Tag Expression. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendFcm(jsonPayload, cancellationToken)` | Sends fcm. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendFcm(jsonPayload, tags, cancellationToken)` | Sends fcm. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendFcmToTagExpression(jsonPayload, tagExpression, cancellationToken)` | Sends fcm To Tag Expression. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendFcmV1(jsonPayload, cancellationToken)` | Sends fcm V. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendFcmV1(jsonPayload, tags, cancellationToken)` | Sends fcm V. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendFcmV1ToTagExpression(jsonPayload, tagExpression, cancellationToken)` | Sends fcm V1 To Tag Expression. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendWindows(windowsNativePayload, cancellationToken)` | Sends windows. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendWindows(windowsNativePayload, tags, cancellationToken)` | Sends windows. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendWindowsToTagExpression(windowsNativePayload, tagExpression, cancellationToken)` | Sends windows To Tag Expression. | A task whose result is the requested notification Outcome. |
-| `IAzureNotificationHubSender.SendAdm(jsonPayload, cancellationToken)` | Sends adm. | A task whose result is the requested notification Outcome. |
+NotificationOutcome outcome = await sender.SendFcmV1(
+    payload,
+    tags: ["user:42"],
+    cancellationToken);
+```
 
-## Practical notes
+Platform helpers are available for Apple, legacy FCM, FCM v1, Windows, ADM, Baidu, and MPNS payloads. The package passes native payload strings to the Azure SDK; it does not build or validate platform JSON/XML.
 
-- Cancellation stops pending work; it does not undo work that has already completed.
+## Targeting options
+
+- Overloads accepting `tags` target the union understood by the Azure SDK.
+- `*ToTagExpression` methods accept Azure Notification Hubs tag-expression syntax.
+- `SendDirect` targets one device handle or a supplied handle list.
+- `SendTemplate` sends a property dictionary for templates already registered on installations.
+- `Send(Notification)` and platform overloads with no tags or expression are broadcasts to all eligible installations in the hub.
+
+Treat no-target overloads as privileged broadcast operations. Do not select an overload from untrusted request input, and validate user-derived tag expressions against your authorization model. A successful `NotificationOutcome` reflects Azure's send submission; it does not prove every device displayed the notification.

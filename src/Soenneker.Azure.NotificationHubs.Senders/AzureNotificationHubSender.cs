@@ -44,7 +44,8 @@ public sealed class AzureNotificationHubSender : IAzureNotificationHubSender
     {
         NotificationHubClient client = await _notificationHubService.Get(cancellationToken).NoSync();
 
-        _logger.LogDebug("Sending Azure Notification Hubs notification to tag expression ({tagExpression})...", tagExpression);
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Sending Azure Notification Hubs notification to tag expression ({tagExpression})...", tagExpression);
 
         return await client.SendNotificationAsync(notification, tagExpression, cancellationToken).NoSync();
     }
@@ -72,7 +73,8 @@ public sealed class AzureNotificationHubSender : IAzureNotificationHubSender
     {
         NotificationHubClient client = await _notificationHubService.Get(cancellationToken).NoSync();
 
-        _logger.LogDebug("Sending Azure Notification Hubs template notification to tag expression ({tagExpression})...", tagExpression);
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Sending Azure Notification Hubs template notification to tag expression ({tagExpression})...", tagExpression);
 
         return await client.SendTemplateNotificationAsync(properties, tagExpression, cancellationToken).NoSync();
     }
